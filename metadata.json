@@ -1,0 +1,5 @@
+{
+  "name": "PixelPerfect Pro",
+  "description": "Professional-grade image resizer using high-quality Canvas interpolation algorithms. 100% local processing for maximum privacy.",
+  "requestFramePermissions": []
+}
