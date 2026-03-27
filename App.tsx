@@ -17,7 +17,8 @@ import {
   Info,
   Files,
   Trash2,
-  FileArchive
+  FileArchive,
+  AlertCircle
 } from 'lucide-react';
 import { ImageData, ResizeOptions, ImageFormat, ImagePreset } from './types.ts';
 import { getImageDimensions, resizeImage } from './utils/imageProcessor.ts';
@@ -62,7 +63,8 @@ const App: React.FC = () => {
             file,
             previewUrl: URL.createObjectURL(file),
             originalWidth: dimensions.width,
-            originalHeight: dimensions.height
+            originalHeight: dimensions.height,
+            status: 'pending'
           });
         } catch (err) {
           console.error("Erro ao carregar imagem:", err);
@@ -141,9 +143,19 @@ const App: React.FC = () => {
   const processImages = async () => {
     if (images.length === 0) return;
     setIsProcessing(true);
-    try {
-      const results: ResizedImageData[] = [];
-      for (const img of images) {
+    
+    // Reset statuses
+    setImages(prev => prev.map(img => ({ ...img, status: 'pending', error: undefined })));
+
+    const results: ResizedImageData[] = [];
+    
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      
+      // Update status to processing
+      setImages(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'processing' } : item));
+
+      try {
         const { blob, url } = await resizeImage(img.file, options);
         results.push({
           url,
@@ -151,15 +163,19 @@ const App: React.FC = () => {
           size: blob.size,
           name: img.file.name
         });
+        // Update status to success
+        setImages(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'success' } : item));
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        // Update status to error
+        setImages(prev => prev.map((item, idx) => idx === i ? { ...item, status: 'error', error: errorMessage } : item));
       }
-      setResizedImages(results);
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao processar imagens.");
-    } finally {
-      setIsProcessing(false);
     }
+    
+    setResizedImages(results);
+    setIsProcessing(false);
   };
+
 
   const applyPreset = (preset: { width: number; height: number }) => {
     setOptions(prev => ({
@@ -304,6 +320,16 @@ const App: React.FC = () => {
               {/* Image List */}
               {images.length > 0 && (
                 <div className="mt-4 space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                  {/* Progress Bar */}
+                  {isProcessing && (
+                    <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden mb-2">
+                      <motion.div 
+                        className="h-full bg-cyan-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(images.filter(i => i.status === 'success' || i.status === 'error').length / images.length) * 100}%` }}
+                      />
+                    </div>
+                  )}
                   {images.map((img, idx) => (
                     <div 
                       key={idx}
@@ -317,6 +343,12 @@ const App: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-bold truncate text-slate-300">{img.file.name}</p>
                         <p className="text-[9px] text-slate-500">{img.originalWidth}×{img.originalHeight}</p>
+                      </div>
+                      <div className="text-slate-500">
+                        {img.status === 'processing' && <RefreshCw size={12} className="animate-spin text-cyan-500" />}
+                        {img.status === 'success' && <Check size={12} className="text-emerald-500" />}
+                        {img.status === 'error' && <AlertCircle size={12} className="text-red-500" title={img.error} />}
+                        {(!img.status || img.status === 'pending') && <div className="w-2 h-2 rounded-full bg-slate-700" />}
                       </div>
                       <button 
                         onClick={(e) => { e.stopPropagation(); removeImage(idx); }}

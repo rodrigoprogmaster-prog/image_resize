@@ -14,6 +14,8 @@ export interface ImageData {
   previewUrl: string;
   originalWidth: number;
   originalHeight: number;
+  status?: 'pending' | 'processing' | 'success' | 'error';
+  error?: string;
 }
 
 export interface ImagePreset {
